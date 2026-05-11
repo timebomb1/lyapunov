@@ -1,0 +1,14 @@
+{
+  "seed": 7,
+  "best_epoch": 1,
+  "best_loss": 0.0009765625,
+  "verification": {
+    "v_min": 0.0004890792770311236,
+    "v_mean": 2.6683874130249023,
+    "dvdt_max": -0.0009784754365682602,
+    "dvdt_mean": -18.195646286010742,
+    "positivity_violation_rate": 0.000244140625,
+    "derivative_violation_rate": 0.0001220703125,
+    "origin_value": 0.0
+  }
+}
