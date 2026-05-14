@@ -6,20 +6,19 @@ import json
 import torch
 
 from .config import ExperimentConfig
-from .plot import maybe_plot_landscape, maybe_plot_training_curve
 from .systems import get_system
 from .train import save_artifacts, search_best_model, make_model
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Structured neural Lyapunov prototype")
+    parser = argparse.ArgumentParser(description="结构化神经 Lyapunov 原型")
     parser.add_argument("--system-name", type=str, default="stable_cubic_2d", choices=("stable_cubic_2d", "linear"))
     parser.add_argument("--state-dim", type=int, default=2)
     parser.add_argument(
         "--linear-a",
         type=str,
         default=None,
-        help="Row-major matrix values for linear system A, e.g. '-1,0,0,-2'",
+        help="线性系统矩阵 A 的行优先展开值，例如 '-1,0,0,-2'",
     )
     parser.add_argument("--model-kind", type=str, default=None, choices=("structured_nn", "quadratic"))
     parser.add_argument("--output-dir", type=str, default="runs/demo")
@@ -39,7 +38,7 @@ def main() -> None:
     if model_kind is None:
         model_kind = "quadratic" if args.system_name == "linear" else "structured_nn"
 
-    # 创建系统实例。如果是线性系统，会解析并存储 A 矩阵
+    # 根据系统名称创建系统实例；若为线性系统，则解析并保存 A 矩阵
     system = get_system(
         args.system_name,
         state_dim=args.state_dim,
@@ -68,10 +67,6 @@ def main() -> None:
     model = make_model(cfg.state_dim, cfg.hidden_sizes, cfg.device, model_kind=cfg.model_kind)
     model.load_state_dict(result.state_dict)
     model.eval()
-
-    # 画图（若为 2D 系统则会生成相平面/等高线）
-    maybe_plot_training_curve(result.history, output_dir / "training_curve.png")
-    maybe_plot_landscape(model, system, cfg, output_dir / "lyapunov_landscape.png")
 
     report = result.report
     candidate = {"type": cfg.model_kind}

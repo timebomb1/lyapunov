@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ExperimentConfig:
-    # 选择系统：默认是一个内置的 2D 非线性示例
+    # 系统名称：默认是一个内置的二维非线性示例
     system_name: str = "stable_cubic_2d"
-    # 模型类型：'structured_nn' 表示结构化神经网络候选，'quadratic' 表示二次型 P 参数化
+    # 模型类型：structured_nn 表示结构化神经网络候选，quadratic 表示二次型参数化
     model_kind: str = "structured_nn"
     state_dim: int = 2
     seed: int = 7
@@ -35,6 +35,5 @@ class ExperimentConfig:
     hard_example_topk: int = 64
 
     output_dir: str = "runs/demo"
-    plot_grid_size: int = 120
 
     extra: dict[str, float] = field(default_factory=dict)

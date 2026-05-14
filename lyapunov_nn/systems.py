@@ -8,11 +8,11 @@ import torch
 
 @dataclass
 class StableCubicSystem:
-    """简单的 2D 非线性系统示例，用于原型的训练与演示。
+    """简单的二维非线性系统示例，用于原型训练与演示。
 
     方程形式为：dx1/dt = -x1 + 0.5 x2 - x1^3
              dx2/dt = -0.5 x1 - x2 - x2^3
-    主要用于展示 NN 找 Lyapunov 函数的流程。
+    主要用于展示神经网络搜索 Lyapunov 函数的流程。
     """
 
     name: str = "stable_cubic_2d"
@@ -46,7 +46,7 @@ class LinearSystem:
 
 
 def parse_linear_matrix(raw: str, state_dim: int, device: str) -> torch.Tensor:
-    # 将用户通过命令行传入的逗号分隔字符串解析为矩阵
+    # 将命令行传入的逗号分隔字符串解析为矩阵
     values = [float(item.strip()) for item in raw.split(",") if item.strip()]
     expected = state_dim * state_dim
     if len(values) != expected:
@@ -58,7 +58,7 @@ def parse_linear_matrix(raw: str, state_dim: int, device: str) -> torch.Tensor:
 
 
 def get_system(name: str, state_dim: int = 2, linear_a: str | None = None, device: str = "cpu"):
-    # 根据 name 返回对应的系统实例，目前支持两种：内置非线性示例和线性系统
+    # 根据系统名称返回对应的系统实例，目前支持内置非线性示例和线性系统
     if name == "stable_cubic_2d":
         return StableCubicSystem()
 
@@ -66,7 +66,7 @@ def get_system(name: str, state_dim: int = 2, linear_a: str | None = None, devic
         default_a = "-1,0,0,-2" if state_dim == 2 else None
         raw = linear_a if linear_a is not None else default_a
         if raw is None:
-            raise ValueError("For linear systems, provide --linear-a with row-major matrix values.")
+            raise ValueError("线性系统需要通过 --linear-a 提供矩阵 A 的行优先展开值。")
         matrix = parse_linear_matrix(raw, state_dim, device)
         return LinearSystem(name="linear", A=matrix)
 
