@@ -21,7 +21,7 @@ class TrainingResult:
 
 
 def set_seed(seed: int) -> None:
-    # 固定随机数种子，确保可重复性
+    # 固定随机数种子，保证实验结果尽量可复现
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -55,7 +55,7 @@ def train_single_run(system, cfg, seed: int) -> TrainingResult:
 
     for epoch in range(1, cfg.epochs + 1):
         model.train()
-        # 每次训练从采样器中取一批随机状态，混合 hard examples（困难样本）进行训练
+        # 每轮训练先取一批随机状态，再混合困难样本一起优化
         random_batch = sample_states(cfg.batch_size, cfg.state_dim, cfg.radius, cfg.device)
         if hard_examples is not None and hard_examples.numel() > 0:
             hard_count = int(cfg.batch_size * cfg.hard_example_ratio)
@@ -68,7 +68,7 @@ def train_single_run(system, cfg, seed: int) -> TrainingResult:
             batch = random_batch
 
         optimizer.zero_grad(set_to_none=True)
-        # 计算目标损失并反向传播，目标是同时减小正定性/导数违例
+        # 计算目标损失并反向传播，目标是同时降低正定性和导数违例
         loss, metrics = lyapunov_objective(model, system, batch, cfg)
         loss.backward()
         optimizer.step()

@@ -22,8 +22,8 @@ class StructuredLyapunovNet(nn.Module):
         return self.backbone(x)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # 基础项保证在 0 附近有平方项（提高正定性倾向），
-        # residual 用于学习比平方项更灵活的形状，但最终通过平方确保输出非负。
+        # 基础项保证在原点附近有平方项，提升正定性倾向
+        # residual 学习更灵活的形状，但通过平方保证输出非负
         base = x.pow(2).sum(dim=-1, keepdim=True)
         zero = torch.zeros_like(x)
         residual = self.raw(x) - self.raw(zero)
@@ -55,7 +55,7 @@ class QuadraticLyapunovModel(nn.Module):
         self.tril_params = nn.Parameter(torch.zeros(input_dim, input_dim))
 
     def lyapunov_matrix(self) -> torch.Tensor:
-        # 通过下三角矩阵参数化 P = L L^T，且用 softplus 保证对角元素为正，进而使 P 更倾向于正定
+        # 通过下三角矩阵参数化 P = L L^T，并用 softplus 保证对角元素为正
         tril = torch.tril(self.tril_params)
         diag_idx = torch.arange(self.input_dim, device=tril.device)
         tril = tril.clone()

@@ -1,116 +1,80 @@
 # Lyapunov NN Prototype
 
-这是一个可运行的最小原型，核心目标是：
+这是一个面向非线性系统稳定性分析的 Python 原型项目。项目的目标是：给定系统后，自动搜索候选 Lyapunov 函数，并通过采样验证检查其是否满足稳定性条件。
 
-1. 你输入一个系统（早期版本先支持线性系统矩阵 A）
-2. 程序自动搜索一个候选 Lyapunov 函数
-3. 程序自动做采样验证并给出结果
+## 项目简介
 
-如果你是第一次接触这个方向，可以先把它理解成：
+Lyapunov 函数是判断系统稳定性的经典工具。传统方法通常依赖人工构造，尤其在非线性系统场景中，找到合适的函数形式并不容易。本项目尝试用一个可运行的原型，把“输入系统、搜索候选函数、验证结果”这条链路打通。
 
-- 你给系统方程
-- 程序返回一个“稳定性评分函数”并告诉你它在采样上是否通过
+当前版本优先支持两类系统：
 
-## 你现在可以直接做什么
+- 线性系统：通过矩阵 A 表示，输出二次型候选函数 V(x)=x^T P x
+- 一个固定的二维非线性示例：用于演示神经网络候选函数的搜索过程
 
-### 1) 进入项目目录
+## 主要功能
+
+- 根据系统类型自动选择候选函数族
+- 训练候选 Lyapunov 函数参数
+- 计算 V(x) 与 dV/dt
+- 进行采样验证并输出指标
+- 保存模型参数、训练历史和验证结果
+
+## 目录结构
+
+- `lyapunov_nn/main.py`：程序入口，负责训练、验证与结果保存
+- `lyapunov_nn/systems.py`：系统定义与线性矩阵解析
+- `lyapunov_nn/model.py`：候选 Lyapunov 函数模型
+- `lyapunov_nn/losses.py`：损失函数与导数计算
+- `lyapunov_nn/train.py`：训练流程与多次重启搜索
+- `lyapunov_nn/verify.py`：采样验证与统计指标
+
+## 快速开始
+
+### 1. 安装依赖
 
 ```bash
-cd d:\zwj\lyapunov
+pip install -r requirements.txt
 ```
 
-### 2) 先跑最简单的线性系统例子（推荐）
-
-下面这个命令表示系统
-
-dx/dt = A x, 其中 A = [[-1, 0], [0, -2]]
-
-程序会自动返回一个二次型候选函数：
-
-V(x) = x^T P x
+### 2. 运行线性系统示例
 
 ```bash
-C:\Users\xn\miniconda3\envs\lyapunov\python.exe -m lyapunov_nn.main --system-name linear --state-dim 2 --linear-a=-1,0,0,-2 --epochs 100 --restarts 1 --output-dir runs/linear_demo
+python -m lyapunov_nn.main --system-name linear --state-dim 2 --linear-a=-1,1,-1,-1 --epochs 100 --restarts 1 --output-dir runs/linear_demo
 ```
 
-注意：
+该命令会对线性系统
 
-- 如果矩阵里有负数，请用 --linear-a=-1,0,0,-2 这种等号写法
-- 这是为了避免命令行把 -1 误识别成新参数
+```text
+dot x = A x
+A = [[-1, 1], [-1, -1]]
+```
 
-### 3) 运行结束后重点看 metrics.json
+进行候选 Lyapunov 函数搜索，最终输出 `metrics.json` 和 `best_model.pt`。
 
-文件里会出现：
-
-- system.A：你输入的系统矩阵
-- candidate_lyapunov.P：自动搜索出来的 Lyapunov 二次型矩阵
-- verification：采样验证结果
-
-也就是说，这个版本已经实现了“输入系统 -> 输出候选 Lyapunov 函数参数”。
-
-### 4) 保留的固定非线性示例（可选）
-
-如果你的终端已经激活了 lyapunov 环境：
+### 3. 运行一个固定的二维非线性示例
 
 ```bash
 python -m lyapunov_nn.main --system-name stable_cubic_2d --output-dir runs/demo
 ```
 
-如果没有激活环境，直接用解释器绝对路径：
+## 输出结果
 
-```bash
-C:\Users\xn\miniconda3\envs\lyapunov\python.exe -m lyapunov_nn.main --system-name stable_cubic_2d --output-dir runs/demo
-```
+运行完成后，输出目录中通常包含：
 
-### 5) 运行结束后看这几个结果
+- `metrics.json`：系统信息、候选函数参数与验证指标
+- `best_model.pt`：训练得到的最优模型参数
+- `history.pt`：训练过程记录
 
-- runs/demo/metrics.json：核心验证指标（包括系统信息与候选函数参数）
-- runs/demo/training_curve.png：训练过程曲线
-- runs/demo/lyapunov_landscape.png：2D 等高线和相平面可视化
-- runs/demo/best_model.pt：训练得到的模型参数
+## 如何理解验证结果
 
-## 怎么判断这次结果是否基本可用
+重点查看以下三项指标：
 
-先看 metrics.json 里的三个关键量：
+- `positivity_violation_rate`：越接近 0 越好
+- `derivative_violation_rate`：越接近 0 越好
+- `dvdt_max`：通常希望小于 0
 
-- positivity_violation_rate：越接近 0 越好
-- derivative_violation_rate：越接近 0 越好
-- dvdt_max：通常希望小于 0（至少在大多数采样点上为负）
+如果是线性系统，还可以重点看 `candidate_lyapunov.P` 是否接近正定矩阵，以及是否与理论解析形式一致。
 
-这三项满足得越好，说明候选函数越像一个可用的 Lyapunov 函数。
+## 课题阶段说明
 
-在线性系统模式下，还可以直接看：
-
-- candidate_lyapunov.P 是否为正定（对角项一般应为正）
-
-## 常用调参命令
-
-先用快速小实验检查链路（线性系统）：
-
-```bash
-python -m lyapunov_nn.main --system-name linear --state-dim 2 --linear-a=-1,0,0,-2 --epochs 50 --restarts 1 --batch-size 128 --output-dir runs/quick
-```
-
-再用稍完整的配置提升结果：
-
-```bash
-python -m lyapunov_nn.main --system-name linear --state-dim 2 --linear-a=-1,0,0,-2 --epochs 400 --restarts 3 --batch-size 256 --output-dir runs/full
-```
-
-## 当前原型范围（你需要知道的边界）
-
-- 目前优先支持线性系统输入（通过矩阵 A）
-- 目前保留了一个固定 2D 非线性示例用于对照
-- 目前是采样式数值验证，不是严格数学证明
-- 适合做课题早期原型，不是最终论文级证明系统
-
-## 代码结构
-
-- lyapunov_nn/main.py：主入口（训练 + 验证 + 保存结果）
-- lyapunov_nn/systems.py：示例非线性系统
-- lyapunov_nn/model.py：结构化 Lyapunov 网络
-- lyapunov_nn/losses.py：训练目标与约束损失
-- lyapunov_nn/train.py：训练循环与多次重启搜索
-- lyapunov_nn/verify.py：采样验证与统计
-- lyapunov_nn/plot.py：结果可视化
-
+这个项目目前定位为“可运行原型”。它不是严格的数学证明系统，但已经能展示自动构造 Lyapunov 函数的基本流程。
