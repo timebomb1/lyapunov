@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable
+import importlib.util
+from pathlib import Path
 
 import torch
 
@@ -57,7 +59,58 @@ def parse_linear_matrix(raw: str, state_dim: int, device: str) -> torch.Tensor:
     return matrix
 
 
-def get_system(name: str, state_dim: int = 2, linear_a: str | None = None, device: str = "cpu"):
+def load_custom_system_from_file(filepath: str):
+    """从 Python 文件动态加载自定义系统定义。
+    
+    用户需要在文件中定义一个名为 `system` 的全局对象（系统实例），
+    或者定义一个名为 `create_system()` 的函数返回系统实例。
+    
+    系统对象需要包含：
+    - dynamics(x: torch.Tensor) -> torch.Tensor：系统动力学函数
+    - state_dim: int 或 @property：状态维数
+    - name: str（可选）：系统名称
+    """
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"系统定义文件不存在: {filepath}")
+    
+    spec = importlib.util.spec_from_file_location("custom_system", filepath)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载模块: {filepath}")
+    
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    # 尝试获取系统实例或工厂函数
+    if hasattr(module, "system"):
+        return module.system
+    elif hasattr(module, "create_system") and callable(module.create_system):
+        return module.create_system()
+    else:
+        raise AttributeError(
+            f"自定义系统文件需要定义 'system' 实例或 'create_system()' 函数，但都未找到: {filepath}"
+        )
+
+
+def get_system(
+    name: str | None = None,
+    state_dim: int = 2,
+    linear_a: str | None = None,
+    custom_system_file: str | None = None,
+    device: str = "cpu",
+):
+    """根据系统名称或自定义文件返回对应的系统实例。
+    
+    优先级：
+    1. 如果提供 custom_system_file，从文件加载
+    2. 如果 name 为已知类型，使用内置系统
+    """
+    if custom_system_file is not None:
+        return load_custom_system_from_file(custom_system_file)
+    
+    if name is None:
+        name = "stable_cubic_2d"
+    
     # 根据系统名称返回对应的系统实例，目前支持内置非线性示例和线性系统
     if name == "stable_cubic_2d":
         return StableCubicSystem()
@@ -70,4 +123,4 @@ def get_system(name: str, state_dim: int = 2, linear_a: str | None = None, devic
         matrix = parse_linear_matrix(raw, state_dim, device)
         return LinearSystem(name="linear", A=matrix)
 
-    raise ValueError(f"Unsupported system: {name}")
+    raise ValueError(f"不支持的系统名称: {name}")
